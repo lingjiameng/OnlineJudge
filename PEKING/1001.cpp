@@ -443,28 +443,57 @@ bool operator!=(const lint &num1, const lint &num2) { return (num1._comp(num2) !
 
 ostream &operator<<(ostream &out, const lint &num){return (out << num.str());}
 
-int main(){
-    string num1,num2;
-    // ios::sync_with_stdio(false);
-    cin >> num1 >> num2 ;
+int main()
+{
+    string num, exp;
+    cin >> num >> exp;
+    
+    //确定小数点的位数，并且从字符串中去除小数点。
+    lint points; 
+    for(int i = 0; i < num.size(); i++){
+        if (num[num.size()-i-1]=='.'){
+            points = i; //记录小数点的位数
+            num.erase(num.size() - i-1,1); //去除小数点
+            break;
+        }
+    }
 
-    lint lnum1(num1),lnum2(num2);
+    //构造无小数点的数
+    lint lnum(num), lexp(exp);
 
-    cout << "=======================结果========================="<< endl;
+    //计算次方
+    lint lres = 1;
+    for(int i=0 ; i < lexp ;i++){
+        lres = lres * lnum;
+    }
+    points = points * lexp;
 
-    cout << "数一: " << lnum1 << endl;
+    //添加小数点
+    string sres = lres.str();
+    string ans = "";
+    int i =0;
+    for(i = 0; i < sres.size() && i< points ;i++){
+        ans  = sres[sres.size()- i - 1 ] + ans;
+    }
+    for ( ;i < points; i++)
+    {
+        ans = '0' + ans;
+    }
+    ans = '.' + ans;
+    for (; i < sres.size(); i++)
+    {
+        ans = sres[sres.size() - i - 1] + ans;
+    }
 
-    cout << "数二: " << lnum2 << endl;
-
-    cout << "  和: " << lnum1+lnum2 << endl;
-
-    cout << "  差: " << lnum1-lnum2 << endl;
-
-    cout << "乘积: " << lnum1*lnum2 << endl;
-
-    cout << "  商: " << lnum1/lnum2 << endl;
-
-    cout << "余数: " << lnum1%lnum2 << endl;
-
+    //取出多余的
+    for(i = 0;i < ans.size()&& ans[i]=='0';i++){} 
+    ans.erase(0,i);
+    for (i = ans.size()-1 ; i >=0 && (ans[i] == '0' || ans[i]=='.'); i--)
+    {
+        if (ans[i]=='.') break;         
+    }
+    i++;
+    ans.erase(i,ans.size()-i);
+    cout << ans << endl;
     return 0;
 }
