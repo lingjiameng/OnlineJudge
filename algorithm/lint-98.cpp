@@ -1,10 +1,10 @@
 #include <iostream>
 #include <string>
-//高精度幂
+//高精度幂  
 
+#define ul unsigned long
 #define LINTSIZE 100000 //数组的块数,调整高精度数的位数范围
-#define BLOCKSIZE 8     //用右式可自动调节大小 (2*sizeof(int))
-                        //每块存储数据的位数 [0, 10^BBLOCKSIZE]
+#define BLOCKSIZE 8     //用右式可自动调节大小 (2*sizeof(int)) 每块存储数据的位数 [0, 10^BBLOCKSIZE]
 #define BASE 100000000
 
 //如下设置可以满足需求
@@ -18,6 +18,14 @@ class ZeroDivisionError
 {
 };
 
+ul len(const char *p)
+{
+    ul l = 0;
+    while (p[l] != '\0')
+        l++;
+    return l;
+}
+
 //高精度整数类，实现了加减乘除和取模
 class lint
 {
@@ -26,27 +34,20 @@ private:
     //每四位存储为一块，每块的最大存储范围【-32768,32768】，
     //实际使用【0,9999】
     //相对于阅读顺序倒序存储
-    int size; // 占用了多少块【0，LINTSIZE-1】
+    ul size; // 占用了多少块【0，LINTSIZE-1】
     int sign; // 数的正负,负数为-1，正数为0
     // string data; // lint的完整string形式，用于IO
 
-    struct _quot_rmndr
-    {
-        string quot;
-        string rmndr;
-    };
-
-    void from_string(const string &data);                   //从data分析出其他三部分数据
-    void from_digits(int *arr, int arr_size, int arr_sign); //digits 转化为string
-    _quot_rmndr _dvd(const lint &num) const;                //商的范围0-9的除法
+    void from_digits(int *arr, ul arr_size, int arr_sign); //digits 转化为string
+    void from_chars(const char * data);
+    lint _dvd(const lint &num , int &quot) const;
 public:
     lint();                  //默认值
-    lint(char * src);  //字符数组
-    lint(const string &src); //字符串
-    lint(const int &src);    //整数
+    lint(const char * src);        //字符数组
+    lint(int src);    //整数
     lint(const lint &src);   //拷贝构造函数
 
-    string str() const;                   //输出string
+    char* str(char * out) const;           //输出字符串
     int _comp(const lint &num) const;     //大于num 返回1，相等返回0， 小于 lint2 返回-1
     int _comp_abs(const lint &num) const; //比较绝对值，结果同上
     lint _add(const lint &num) const;     //加法
@@ -57,86 +58,100 @@ public:
     ~lint(){};
 };
 
-//从string获取值
-void lint::from_string(const string &src)
-{
-    const string &data = src;
+void lint::from_chars(const char *data){
     sign = -1 * (data[0] == '-');
-    size = (data.size() + sign - 1) / BLOCKSIZE + 1;
-    //转换为digits
-    for (int i = 0; i < size; i += 1)
+
+    ul data_len = len(data);
+    size = (data_len + sign - 1) / BLOCKSIZE + 1;
+    //从字符串的尾部 到 头部 转换为digits的 头部 到 尾部
+    for (ul i = 0; i < size; i += 1)
     {
         digits[i] = 0;
         int dpow = 1;
-        for (int j = 0; BLOCKSIZE * i + j < (int)data.size() + sign && j < BLOCKSIZE; j++)
+        for (int j = 0; BLOCKSIZE * i + j < data_len + sign && j < BLOCKSIZE; j++)
         {
-            digits[i] += (data[data.size() - BLOCKSIZE * i - j - 1] - '0') * dpow;
+            digits[i] += (data[data_len - BLOCKSIZE * i - j - 1] - '0') * dpow;
             dpow = dpow * 10;
         }
     }
     //去掉开头的 0
-    for (; size > 1 && digits[size - 1] == 0; size--)
-    {
-    }
+    while(size>1 && digits[size-1]==0) size--;
 }
 
 //从数组获取值
-void lint::from_digits(int *arr, int arr_size, int arr_sign)
+void lint::from_digits(int *arr, ul arr_size, int arr_sign)
 {
     size = arr_size;
     sign = arr_sign;
-    for (int i = 0; i < size; i++)
+    for (ul i = 0; i < size; i++)
     {
         digits[i] = arr[i];
     }
     //去掉开头的 0
-    for (; size > 1 && digits[size - 1] == 0; size--)
-    {
-    }
+    while(size>1&&digits[size-1]==0) size--;
 }
 
-//转化为可打印的string
-string lint::str() const
+//转化为可打印的字符数组
+char * lint::str(char * p) const
 {
-    string data = "", tmp = "";
-    for (int i = 0; i < size - 1; i++)
-    {
-        tmp = std::to_string(digits[i]);
-        tmp = string(BLOCKSIZE - tmp.size(), '0') + tmp;
-        data = tmp + data;
+    int bases[BLOCKSIZE],tmp=BASE;
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {   
+        tmp /=10;
+        bases[i]= tmp;
     }
-    data = std::to_string(digits[size - 1]) + data;
+
     if (sign == -1)
-        data = '-' + data;
-    return data;
+        p[0] = '-';
+    
+    ul delta = -sign;
+
+    //最高位的数字块，不补零
+    tmp = digits[size -1];
+    for (int j = 0; j < BLOCKSIZE; j++)
+    {
+        p[delta] ='0'+ tmp / bases[j];
+        tmp = tmp % bases[j];
+        if(p[delta]!= '0' || delta+sign != 0)delta++; //去掉前面的0
+    }
+
+    //处理剩余的数字块，需要补零
+    ul i = 0 ,j = 0 ;
+    for (i = 0; i < size - 1; i++)
+    {
+        tmp = digits[size - i - 2];
+        for(j = 0;j<BLOCKSIZE;j++){
+            p[delta + i*BLOCKSIZE + j]= '0' + tmp/bases[j];
+            tmp = tmp%bases[j];
+        }
+    }
+    p[delta + i * BLOCKSIZE] = '\0';
+    return p;   
 }
 
 //默认空构造函数
 lint::lint()
 {
-    string tmp = "0";
-    from_string(tmp);
+    char tmp[] = "0";
+    from_chars(tmp);
 }
 
 //字符数组构造函数
-lint::lint(char *src)
+lint::lint(const char *src)
 {
-    //默认为只带有+-号的非空字符串
-    string tmp = string(src);
-    from_string(tmp);
-}
-
-//字符串构造函数
-lint::lint(const string &src)
-{
-    from_string(src);
+    from_chars(src);
 }
 
 //整数构造函数
-lint::lint(const int &src)
+lint::lint(int src)
 {
-    string tmp = std::to_string(src);
-    from_string(tmp);
+    sign = (src>=0)-1;
+    int quot = src;
+    size = 0 ;
+    do{
+        digits[size++] = quot % BASE;
+        quot = quot / BASE;
+    } while (quot != 0);
 }
 
 //拷贝构造函数
@@ -221,10 +236,7 @@ lint lint::_add(const lint &num) const
         }
 
         //去掉开头的 0
-        for (; res.size > 1 && res.digits[res.size - 1] == 0; res.size--)
-        {
-        }
-
+        while(res.size > 1 && res.digits[res.size - 1] == 0) res.size--;
         //返回结果
     }
     return res;
@@ -251,11 +263,11 @@ lint lint::_multi(const lint &num) const
 
     //模仿算式乘法对第二个数每段分别计算一个乘积，然后将乘积累加。
     long long int carry = 0, product = 0;
-    int i1 = 0, i2 = 0;
+    ul i1 = 0, i2 = 0;
     for (i2 = 0; i2 < num.size; i2++)
     {
         //第i2段程式结果低位置零
-        for (int i = 0; i < i2; i++)
+        for (ul i = 0; i < i2; i++)
             tmp.digits[i] = 0; //乘积相应位数置零
 
         carry = 0;
@@ -277,7 +289,7 @@ lint lint::_multi(const lint &num) const
 
     return res;
 }
-
+ 
 //两个数的除法
 lint lint::_devide(const lint &num) const
 {
@@ -288,14 +300,14 @@ lint lint::_devide(const lint &num) const
     // 同号整除，商 和 余数 同号
     // 异号整除，商负 余同除数
     */
+    //异常检查
     if (num._comp_abs(0) == 0)
         throw ZeroDivisionError();
+    
     lint num1(*this), num2(num); //绝对值复制
     num1.sign = num2.sign = 0;
 
-    string rmndr = "", quot = "";
-
-    lint tmp, res;
+    lint rmndr, quot ,tmp;
     int res_sign;
     if (sign == num.sign)
     { //同号除法
@@ -306,77 +318,81 @@ lint lint::_devide(const lint &num) const
         res_sign = -1; //商的符号为负
         num1 = num1._add(num2);
     }
-    for (auto c : num1.str())
+
+    char num1_str[num1.size * BLOCKSIZE + 10];
+    num1.str(num1_str);
+
+    int tmp_quot = 0;
+    for (ul i = 0; i<len(num1_str) ; i++)
     {                                      //从高位到低位依次计算商和余数
-        tmp.from_string(rmndr + c);        //余数乘10加入本次运算
-        _quot_rmndr mods = tmp._dvd(num2); //对当前数取余
-        quot = quot + mods.quot;           //累计的商乘10加上当前商
-        rmndr = mods.rmndr;
+        tmp = rmndr._multi(10)._add(num1_str[i]-'0');//余数乘10加入本次运算
+        rmndr = tmp._dvd(num2,tmp_quot); //对当前数取余
+        quot = quot._multi(10)._add(tmp_quot);           //累计的商乘10加上当前商
     }
-    res.from_string(quot);
-    if (res.size != 1 || res.digits[0] != 0)
-        res.sign = res_sign;
-    return res;
+
+    if (quot.size != 1 || quot.digits[0] != 0)
+        quot.sign = res_sign;
+    return quot;
 }
 
 //两个数取余
 lint lint::_mod(const lint &num) const
 {
+    if (num._comp_abs(0) == 0)
+        throw ZeroDivisionError();
+
     lint num1(*this), num2(num); //绝对值复制
     num1.sign = num2.sign = 0;
 
-    string rmndr = "", quot = "";
-
-    lint tmp, res;
+    lint rmndr, quot, tmp;
     int res_sign = num.sign; //同号时符号相同，异号时余数符号和除数符号相同
     if (sign != num.sign)    //异号补数
         num1 = num1._add(num2);
-    for (auto c : num1.str())
-    {                                      //从高位到低位依次计算商和余数
-        tmp.from_string(rmndr + c);        //余数乘10加入本次运算
-        _quot_rmndr mods = tmp._dvd(num2); //对当前数取余
-        quot = quot + mods.quot;           //累计的商乘10加上当前商
-        rmndr = mods.rmndr;
+    char num1_str[num1.size * BLOCKSIZE + 10];
+    num1.str(num1_str);
+
+    int tmp_quot = 0;
+    for (ul i = 0; i < len(num1_str); i++)
+    {                                                   //从高位到低位依次计算商和余数
+        tmp = rmndr._multi(10)._add(num1_str[i] - '0'); //余数乘10加入本次运算
+        rmndr = tmp._dvd(num2, tmp_quot);               //对当前数取余
+        quot = quot._multi(10)._add(tmp_quot);          //累计的商乘10加上当前商
     }
-    res.from_string(rmndr);
+
     if (sign != num.sign) //异号补数
-        res = num2._minus(res);
-    if (res.size != 1 || res.digits[0] != 0)
-        res.sign = res_sign;
-    return res;
+        rmndr = num2._minus(rmndr);
+    if (rmndr.size != 1 || rmndr.digits[0] != 0)
+        rmndr.sign = res_sign;
+    return rmndr;
 }
 
 //商的范围0-9的特定除法，_devide的辅助函数
-lint::_quot_rmndr lint::_dvd(const lint &num) const
+lint lint::_dvd(const lint &num , int & quot) const
 {
 
-    _quot_rmndr res;
     int comp = _comp_abs(num);
 
     if (comp == -1)
     { // 小于num
-        res.quot = "0";
-        res.rmndr = this->str();
+        quot = 0;
+        return *this;
     }
     else if (comp == 0)
     { //等于num
-        res.quot = "1";
-        res.rmndr = "0";
+        quot = 1;
+        return lint(0);
     }
-    else if (comp == 1)
-    { //大于num
-        int quot = 0;
-        lint rmndr(*this);
-        while (rmndr._comp_abs(num) >= 0)
-        {
-            rmndr = rmndr._minus(num);
-            quot++;
-        }
-        res.quot = '0' + quot;
-        res.rmndr = rmndr.str();
+    //大于num
+    quot = 0;
+    lint rmndr(*this);
+    while (rmndr._comp_abs(num) >= 0)
+    {
+        rmndr = rmndr._minus(num);
+        quot++;
     }
-    return res;
+    return rmndr;
 }
+
 
 //两个数大小比较|| -1 小于 || 0 等于 || 1 大于  ||
 int lint::_comp(const lint &num) const
@@ -431,40 +447,45 @@ int lint::_comp_abs(const lint &num) const
 lint operator+(const lint &num1, const lint &num2) { return num1._add(num2); }
 lint operator-(const lint &num1, const lint &num2) { return num1._minus(num2); }
 lint operator*(const lint &num1, const lint &num2) { return num1._multi(num2); }
-lint operator/(const lint &num1, const lint &num2) { return num1._devide(num2); }
+lint operator/(const lint &num1, const lint &num2) {return num1._devide(num2);}
 lint operator%(const lint &num1, const lint &num2) { return num1._mod(num2); }
 // 重载逻辑运算符
-bool operator<(const lint &num1, const lint &num2) { return (num1._comp(num2)==-1);}
+bool operator<(const lint &num1, const lint &num2) { return (num1._comp(num2) == -1); }
 bool operator<=(const lint &num1, const lint &num2) { return (num1._comp(num2) != 1); }
 bool operator>(const lint &num1, const lint &num2) { return (num1._comp(num2) == 1); }
 bool operator>=(const lint &num1, const lint &num2) { return (num1._comp(num2) != -1); }
 bool operator==(const lint &num1, const lint &num2) { return (num1._comp(num2) == 0); }
 bool operator!=(const lint &num1, const lint &num2) { return (num1._comp(num2) != 0); }
 
-ostream &operator<<(ostream &out, const lint &num){return (out << num.str());}
+ostream &operator<<(ostream &out, const lint &num) {
+    char p[LINTSIZE * BLOCKSIZE + 10];
+    num.str(p);
+    return (out << p );
+}
 
-int main(){
-    string num1,num2;
+int main()
+{
+    char num1[BLOCKSIZE * LINTSIZE + 10], num2[BLOCKSIZE * LINTSIZE + 10];
     // ios::sync_with_stdio(false);
-    cin >> num1 >> num2 ;
+    cin >> num1 >> num2;
 
-    lint lnum1(num1),lnum2(num2);
+    lint lnum1(num1), lnum2(num2);
 
-    cout << "=======================结果========================="<< endl;
+    cout << "=======================结果=========================" << endl;
 
     cout << "数一: " << lnum1 << endl;
 
     cout << "数二: " << lnum2 << endl;
 
-    cout << "  和: " << lnum1+lnum2 << endl;
+    cout << "  和: " << lnum1 + lnum2 << endl;
 
-    cout << "  差: " << lnum1-lnum2 << endl;
+    cout << "  差: " << lnum1 - lnum2 << endl;
 
-    cout << "乘积: " << lnum1*lnum2 << endl;
+    cout << "乘积: " << lnum1 * lnum2 << endl;
 
-    cout << "  商: " << lnum1/lnum2 << endl;
+    cout << "  商: " << lnum1 / lnum2 << endl;
 
-    cout << "余数: " << lnum1%lnum2 << endl;
+    cout << "余数: " << lnum1 % lnum2 << endl;
 
     return 0;
 }
