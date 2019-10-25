@@ -491,6 +491,10 @@ int main()
         //构造无小数点的数
         lint lnum(num.c_str()), lexp(exp);
 
+        // if(lnum == 0){
+        //     cout<<'0'<<endl;
+        //     continue;
+        // }
         //计算次方
         lint lres = 1;
         for (unsigned int i = 0; i < lexp; i++)
@@ -501,8 +505,11 @@ int main()
 
         //添加小数点
         char res_str[BLOCKSIZE * LINTSIZE + 10];
-        string sres = lres.str(res_str);
+        lres.str(res_str);
+        string sres(res_str);
         string ans = "";
+
+        // cout <<sres <<"||" <<sres.size()<<endl;
         unsigned int i = 0;
         for (i = 0; i < sres.size() && i < points; i++)
         {
@@ -527,13 +534,19 @@ int main()
         {
             if (ans[i] == '.')
             {
-                ans[i] ='\0';
+                i--;
                 break;
             }
         }
         i++;
         ans.erase(i, ans.size() - i);
-        cout << ans << endl;
+        if(ans.size()!=0)
+            cout << ans << endl;
+        else
+        {
+            cout<< "0" <<endl;
+        }
+            
     }
     return 0;
 }

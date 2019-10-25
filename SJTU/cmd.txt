@@ -1,0 +1,1 @@
+g++ -o tmp -O2 -std=c++11 -Wall -static -DONLINE_JUDGE 1028.cpp

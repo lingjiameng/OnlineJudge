@@ -59,16 +59,16 @@ public:
 };
 
 void lint::from_chars(const char *data){
-    sign = -1 * (data[0] == '-');
-
     ul data_len = len(data);
+    int dpow;
+    sign = -1 * (data[0] == '-');
     size = (data_len + sign - 1) / BLOCKSIZE + 1;
     //从字符串的尾部 到 头部 转换为digits的 头部 到 尾部
     for (ul i = 0; i < size; i += 1)
     {
         digits[i] = 0;
-        int dpow = 1;
-        for (int j = 0; BLOCKSIZE * i + j < data_len + sign && j < BLOCKSIZE; j++)
+        dpow = 1;
+        for (int j = 0; j < BLOCKSIZE && BLOCKSIZE * i + j < data_len + sign; j++)
         {
             digits[i] += (data[data_len - BLOCKSIZE * i - j - 1] - '0') * dpow;
             dpow = dpow * 10;
@@ -84,9 +84,7 @@ void lint::from_digits(int *arr, ul arr_size, int arr_sign)
     size = arr_size;
     sign = arr_sign;
     for (ul i = 0; i < size; i++)
-    {
         digits[i] = arr[i];
-    }
     //去掉开头的 0
     while(size>1&&digits[size-1]==0) size--;
 }
@@ -94,27 +92,21 @@ void lint::from_digits(int *arr, ul arr_size, int arr_sign)
 //转化为可打印的字符数组
 char * lint::str(char * p) const
 {
-    int bases[BLOCKSIZE],tmp=BASE;
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {   
-        tmp /=10;
-        bases[i]= tmp;
-    }
-
-    if (sign == -1)
-        p[0] = '-';
-    
+    int bases[BLOCKSIZE],tmp=BASE/10;
     ul delta = -sign;
 
+    for (int i = 0; i < BLOCKSIZE; i++, tmp /= 10)
+        bases[i]= tmp;
+    
+    if (sign == -1)p[0] = '-';
     //最高位的数字块，不补零
     tmp = digits[size -1];
     for (int j = 0; j < BLOCKSIZE; j++)
     {
         p[delta] ='0'+ tmp / bases[j];
         tmp = tmp % bases[j];
-        if(p[delta]!= '0' || delta+sign != 0)delta++; //去掉前面的0
+        if(p[delta]!= '0' || delta+sign != 0 || j==BLOCKSIZE-1)delta++; //去掉前面的0
     }
-
     //处理剩余的数字块，需要补零
     ul i = 0 ,j = 0 ;
     for (i = 0; i < size - 1; i++)
